@@ -14,6 +14,21 @@ import shutil
 import os
 
 
+class ConsoleColors:
+    """
+    for better readability (colors) in the console
+    """
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 def encrypt(source, key, encode=True):
     source = source.encode()
     key = SHA256.new(key.encode()).digest()  # use SHA-256 over our key to get a proper-sized AES key
@@ -68,20 +83,24 @@ def encrypt_directory(password: str, directory: str) -> None:
     # copy files to temp
     force_move(directory, now_dir)
 
-    print(f"encrypting {directory} with {password}")
     try:
         for element in os.listdir(now_dir):
             now_file = now_dir + "/" + element
             now_file_orig = directory + "/" + element
-            print(f"encrypting {now_file_orig}")
             if os.path.isfile(now_file):
-                with open(now_file, "r") as inp:
-                    with open(now_file_orig, "w") as out:
+                with open(now_file, "rb") as inp:
+                    file_dat = inp.read()
+                    with open(now_file_orig, "wb") as out:
                         try:
-                            out.write(encrypt(inp.read(), password, encode=True))
+                            out.write(encrypt(file_dat.decode(), password, encode=True).encode())
+                            print(f"{ConsoleColors.OKGREEN}encrypted{ConsoleColors.ENDC}: "
+                                  f"{now_file_orig}")
 
                         except UnicodeDecodeError:
-                            out.write("nE"+inp.read())
+                            assert file_dat, "empty file!"
+                            out.write("nE".encode() + file_dat)
+                            print(f"{ConsoleColors.FAIL}failed{ConsoleColors.ENDC}: "
+                                  f"{now_file_orig}")
 
             elif os.path.isdir(now_file):
                 shutil.copytree(now_file, now_file_orig)
@@ -106,15 +125,24 @@ def decrypt_directory(password: str, directory: str) -> None:
         for element in os.listdir(now_dir):
             now_file = now_dir + "/" + element
             now_file_orig = directory + "/" + element
-            print(f"decrypting {now_file_orig}")
             if os.path.isfile(now_file):
-                with open(now_file, "r") as inp:
+                with open(now_file, "rb") as inp:
+                    file_dat = inp.read()
                     with open(now_file_orig, "wb") as out:
-                        data = inp.read()
-                        if data.startswith("nE"):
-                            out.write(data[2::].encode())
+                        try:
+                            data = file_dat.decode()
+                            if data.startswith("nE"):
+                                raise UnicodeDecodeError
+
+                            out.write(decrypt(data, password, decode=True))
+                            print(f"{ConsoleColors.OKGREEN}decrypted{ConsoleColors.ENDC}: "
+                                  f"{now_file_orig}")
+
+                        except UnicodeDecodeError:
+                            out.write(file_dat.lstrip(b"nE"))
+                            print(f"{ConsoleColors.FAIL}not encrypted{ConsoleColors.ENDC}: "
+                                  f"{now_file_orig}")
                             continue
-                        out.write(decrypt(data, password, decode=True))
 
             elif os.path.isdir(now_file):
                 shutil.copytree(now_file, now_file_orig)
