@@ -8,7 +8,6 @@ zwer on StackOverflow (https://stackoverflow.com/users/7553525/zwer)
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
 from Crypto import Random
-import tempfile
 import base64
 import shutil
 import os
@@ -61,6 +60,7 @@ def force_move(origin: str, dest: str) -> None:
     temporarily move a directory to /tmp/
     """
     assert origin and dest, f"empty parameter for force_move: {origin=}, {dest=}"
+    assert os.path.isdir(origin), f"{origin}: no such file or directory"
     directory = origin.rstrip("/")
 
     # copy original directory to temp folder
@@ -78,7 +78,8 @@ def encrypt_directory(password: str, directory: str) -> None:
     encrypt a whole directory
     """
     directory = directory.rstrip("/")
-    now_dir = tempfile.gettempdir() + "/" + directory.split("/")[-1]
+    now_dir = directory + "/../" + directory.split("/")[-1] + "_temp"
+    now_dir = os.path.realpath(now_dir)
 
     # copy files to temp
     force_move(directory, now_dir)
@@ -109,7 +110,13 @@ def encrypt_directory(password: str, directory: str) -> None:
     except Exception as e:
         print(f"failsafe, copying back")
         force_move(now_dir, directory)
+        if os.path.exists(now_dir):
+            shutil.rmtree(now_dir)
         raise e
+
+    finally:
+        if os.path.exists(now_dir):
+            shutil.rmtree(now_dir)
 
 
 def decrypt_directory(password: str, directory: str) -> None:
@@ -117,10 +124,12 @@ def decrypt_directory(password: str, directory: str) -> None:
     decrypt a whole directory
     """
     directory = directory.rstrip("/")
-    now_dir = tempfile.gettempdir() + "/" + directory.split("/")[-1]
+    now_dir = directory + "/../" + directory.split("/")[-1] + "_temp"
+    now_dir = os.path.realpath(now_dir)
 
     # copy files to temp
     force_move(directory, now_dir)
+
     try:
         for element in os.listdir(now_dir):
             now_file = now_dir + "/" + element
@@ -149,9 +158,17 @@ def decrypt_directory(password: str, directory: str) -> None:
                 decrypt_directory(password, now_file_orig)
 
     except Exception as e:
-        print(f"failsafe, copying back")
+        assert os.path.exists(now_dir), "temporary folder gone"
+        assert os.path.exists(directory), "original folder gone"
+        print(f"failsafe, copying back ({e})")
         force_move(now_dir, directory)
+        if os.path.exists(now_dir):
+            shutil.rmtree(now_dir)
+
         if type(e) == ValueError:
             raise KeyError("Invalid Password!")
         raise e
 
+    finally:
+        if os.path.exists(now_dir):
+            shutil.rmtree(now_dir)

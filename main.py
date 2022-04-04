@@ -24,7 +24,7 @@ def main() -> int:
 
         match cmd_in[0]:
             case "cd":
-                new = os.path.abspath("" if cmd_in[1] == "~" else (now_dir + "/") + " ".join(cmd_in[1::]))
+                new = os.path.realpath("" if cmd_in[1] == "~" else (now_dir + "/") + " ".join(cmd_in[1::]))
                 if os.path.exists(new):
                     now_dir = new
 
