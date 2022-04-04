@@ -28,6 +28,30 @@ class ConsoleColors:
     UNDERLINE = '\033[4m'
 
 
+def file_name_encryption(string: str) -> str:
+    """
+    encrypt a string viable for file names
+    """
+    out: str = ""
+    part_len = 3
+    for character in string:
+        num = str(ord(character))
+        out += "0" * (part_len-len(num)) + num
+    return out
+
+
+def file_name_decryption(string: str) -> str:
+    """
+    the inverse of file_name_encryption
+    """
+    out: str = ""
+    part_len = 3
+    for i in range(len(string)//part_len):
+        part = string[i*part_len:(i+1)*part_len]
+        out += chr(int(part))
+    return out
+
+
 def encrypt(source, key, encode=True):
     # source = source.encode()
     key = SHA256.new(key.encode()).digest()  # use SHA-256 over our key to get a proper-sized AES key
@@ -88,10 +112,11 @@ def encrypt_directory(password: str, directory: str) -> None:
         for element in os.listdir(now_dir):
             now_file = now_dir + "/" + element
             now_file_orig = directory + "/" + element
+            now_file_name = directory + "/" + file_name_encryption(element)
             if os.path.isfile(now_file):
                 with open(now_file, "rb") as inp:
                     file_dat = inp.read()
-                    with open(now_file_orig, "wb") as out:
+                    with open(now_file_name, "wb") as out:
                         try:
                             out.write(encrypt(file_dat, password, encode=True).encode())
                             print(f"{ConsoleColors.OKGREEN}encrypted{ConsoleColors.ENDC}: "
@@ -133,7 +158,13 @@ def decrypt_directory(password: str, directory: str) -> None:
     try:
         for element in os.listdir(now_dir):
             now_file = now_dir + "/" + element
-            now_file_orig = directory + "/" + element
+            try:
+                de = file_name_decryption(element)
+
+            except ValueError:
+                de = element
+
+            now_file_orig = directory + "/" + de
             if os.path.isfile(now_file):
                 with open(now_file, "rb") as inp:
                     file_dat = inp.read()
@@ -172,3 +203,9 @@ def decrypt_directory(password: str, directory: str) -> None:
     finally:
         if os.path.exists(now_dir):
             shutil.rmtree(now_dir)
+
+
+if __name__ == "__main__":
+    x = file_name_encryption("hi")
+    y = file_name_decryption(x)
+    print(f"{x=}, {y=}")
