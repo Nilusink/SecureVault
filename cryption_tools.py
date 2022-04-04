@@ -30,7 +30,7 @@ class ConsoleColors:
 
 
 def encrypt(source, key, encode=True):
-    source = source.encode()
+    # source = source.encode()
     key = SHA256.new(key.encode()).digest()  # use SHA-256 over our key to get a proper-sized AES key
     IV = Random.new().read(AES.block_size)  # generate IV
     encryptor = AES.new(key, AES.MODE_CBC, IV)
@@ -92,13 +92,13 @@ def encrypt_directory(password: str, directory: str) -> None:
                     file_dat = inp.read()
                     with open(now_file_orig, "wb") as out:
                         try:
-                            out.write(encrypt(file_dat.decode(), password, encode=True).encode())
+                            out.write(encrypt(file_dat, password, encode=True).encode())
                             print(f"{ConsoleColors.OKGREEN}encrypted{ConsoleColors.ENDC}: "
                                   f"{now_file_orig}")
 
                         except UnicodeDecodeError:
                             assert file_dat, "empty file!"
-                            out.write("nE".encode() + file_dat)
+                            out.write(file_dat)
                             print(f"{ConsoleColors.FAIL}failed{ConsoleColors.ENDC}: "
                                   f"{now_file_orig}")
 
